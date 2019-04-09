@@ -17,3 +17,5 @@ Things this editor can do so far:
 - All details needed in the header, cpp, and class diagrams are stored in a composite JSON structure as the fundamental model of the class/object. Eventually this can be extended to use data from a Detailed Design document or requirements to sync comments in the code with the design documentation.
 
 Future updates will explore design document linking, UML diagram editing directly (and sync to the header and cpp file), test generation, class inheritance and connections, and multiple interacting classes.
+
+Python Dependencies: tkinter, json
