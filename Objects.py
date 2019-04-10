@@ -5,6 +5,7 @@ class Variable(object):
         self.specialtype = values['specialtype']
         self.returntype = values['returntype']
         self.protection = values['protection']
+        self.uml_line = ''
         self.header_start = ''
         self.header_end = ''
         self.code_start = ''
@@ -13,6 +14,9 @@ class Variable(object):
 
     def setProtectionType(self, protection):
         self.protection = protection
+
+    def setUmlLine(self, line):
+        self.uml_line = line
 
 class Function(object):
     def __init__(self, values):
@@ -24,6 +28,7 @@ class Function(object):
         self.body = values['body']
         self.protection = ''
         self.body_loc = ''
+        self.uml_line = ''
         self.header_start = ''
         self.header_end = ''
         self.code_start = ''
@@ -34,6 +39,9 @@ class Function(object):
 
     def setBody(self, body):
         self.body = body
+
+    def setUmlLine(self, line):
+        self.uml_line = line
 
     def setHeaderStartStop(self, start, end):
         self.header_start = start

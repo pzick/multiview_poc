@@ -41,15 +41,71 @@ class UmlClassDiagram(tk.Frame):
         self.method_line = 5
         self.draw_diagram()
 
+    def finish(self, text_box):
+        self.class_model.name = text_box.children['!text'].get('1.0', 'end').strip()
+        text_box.destroy()
+
+    def update_class_name(self, event):
+        print('update class name')
+        text_box = tk.Frame(self.canvas)
+        text = tk.Text(text_box, height=1, width=30, borderwidth=3)
+        text.pack()
+        text.bind('<Return>', lambda x: self.finish(text_box))
+        ok_button = tk.Button(text_box, text='OK', bg='green', command=lambda: self.finish(text_box))
+        ok_button.pack()
+        text_box.pack()
+        text_box.place(x=event.x, y=event.y)
+        text.focus_set()
+        text.focus()
+        pass
+
+    def edit_entry(self, line):
+        print('edit line {}'.format(line))
+        pass
+
+    def insert_entry(self, line):
+        print('insert at line {}'.format(line))
+        pass
+
     def on_left_click(self, event):
-        print('Click!')
-        # print(self.focus)
-        # print(self.tk_focusPrev())
-        # print(self.tk_focusNext())
         self.canvas.focus_force()
 
+    def get_item_at_line(self, line):
+        name = ''
+        item_type = ''
+        for key in self.class_model.variables_list.keys():
+            if self.class_model.variables_list[key].uml_line == line:
+                name = key
+                item_type = 'variable'
+        if name == '':
+            for key in self.class_model.function_list.keys():
+                if self.class_model.function_list[key][1].uml_line == line:
+                    name = key
+                    item_type = 'function'
+        if name == '':
+            if line >= self.method_line:
+                item_type = 'function'
+            elif line >= self.member_line:
+                item_type = 'variable'
+        return name, item_type
+
     def on_right_click(self, event):
-        print('Right click')
+        context_menu = tk.Menu(self.canvas, tearoff=0)
+        if self.class_model.name is None or self.class_model.name == '':
+            context_menu.add_command(label='Name the Class', command=lambda: self.update_class_name(event))
+            context_menu.post(event.x_root, event.y_root)
+        else:
+            line = int(event.y / self.classDiagram.line_height)
+            item, item_type = self.get_item_at_line(line)
+            if item == '' and item_type != '':
+                context_menu.add_command(label='Insert {}'.format(item_type),
+                                         command=lambda: self.insert_entry(line))
+            elif item != '' and item_type != '':
+                context_menu.add_command(label='Edit {} "{}"'.format(item_type, item),
+                                         command=lambda: self.edit_entry(line))
+                context_menu.add_command(label='Insert {} after "{}"'.format(item_type, item),
+                                         command=lambda: self.insert_entry(line))
+            context_menu.post(event.x_root, event.y_root)
 
     def on_mouse_wheel(self, event):
         # print(event)
@@ -80,6 +136,7 @@ class UmlClassDiagram(tk.Frame):
                 variable = '{}{}'.format(variable, var.returntype)
                 if len(variable) > max_width:
                     max_width = len(variable)
+                var.setUmlLine(line)
                 self.add_text(line, variable)
                 line = line + 1
         self.method_line = line
@@ -102,6 +159,7 @@ class UmlClassDiagram(tk.Frame):
                 method = '{}{}({}) : {}'.format(method, key[0], func.parameters, returntype)
                 if len(method) > max_width:
                     max_width = len(method)
+                func.setUmlLine(line)
                 self.add_text(line, method)
                 line = line + 1
         if self.class_model.function_list == {}:
@@ -122,7 +180,7 @@ class UmlClassDiagram(tk.Frame):
         rectangle_tag = self.canvas.create_rectangle(self.classDiagram.getBox(), fill='#FFFFCC', width=3)
         self.canvas.tag_lower(rectangle_tag)
         self.canvas.configure(scrollregion=self.classDiagram.getBox())
-        self.after(1000, self.draw_diagram)
+        self.after(500, self.draw_diagram)
 
     def add_text(self, line, text, justify=True):
         # text is centered

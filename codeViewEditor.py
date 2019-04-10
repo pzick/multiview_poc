@@ -58,7 +58,7 @@ def load_files():
     infilenamebase = FileDialog.askopenfilename(initialdir=code_dir,
                                                 filetypes=[('JSON files', '*.json'), ('Header files', '*.hpp'),
                                                            ('C++ files', '*.cpp'), ('All files', '*.*')])
-    if infilenamebase.endswith(".hpp") or infilenamebase.endswith(".cpp"):
+    if infilenamebase.endswith(".hpp") or infilenamebase.endswith(".cpp") or infilenamebase.endswith(".json"):
         infilenamebase = infilenamebase.rsplit('.', 1)[0]
     print(infilenamebase)
     if infilenamebase == '':
@@ -83,6 +83,7 @@ def load_files():
     uml_label.config(text=str(filename + '.uml'), bg='#FFFF00')
     header_label.config(text= str(filename + '.hpp'), bg='#00FF00')
     source_label.config(text= str(filename + '.cpp'), bg='#00FF00')
+    header.class_defined = True
 
 
 def check_updates(event):

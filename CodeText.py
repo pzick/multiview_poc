@@ -38,6 +38,7 @@ class CppCodeText(tk.Frame):
         self.alternate_view = None
         self.umlClassView = None
 
+        self.class_defined = False
         self.class_start = None
         self.class_end = None
         self.protection_state = 'public'
@@ -49,6 +50,7 @@ class CppCodeText(tk.Frame):
 
     def make_new(self):
         self.text.delete('1.0', tk.END)
+        self.class_defined = False
         self.class_start = None
         self.class_end = None
         self.protection_state = 'public'
@@ -82,6 +84,8 @@ class CppCodeText(tk.Frame):
         self.umlClassView = uml_class_view
 
     def parse_header(self):
+        if self.class_defined is False:
+            return
         # Find class bounds
         # Get variable order in file
         current_variables = []
@@ -188,6 +192,10 @@ class CppCodeText(tk.Frame):
 
     def scan_layout(self):
         if self.type == 'hpp':
+            if self.class_model.name != '' and self.class_defined is False\
+                    and len(self.text.get('1.0', 'end')) <= 1:
+                self.text.insert('1.0', 'class {}'.format(self.class_model.name))
+                self.check_for_class()
             self.current_functions = self.parse_header()
         elif self.type == 'cpp':
             self.current_functions = self.parse_cpp()
@@ -195,13 +203,13 @@ class CppCodeText(tk.Frame):
         self.update_comments('1.0', tk.END)
         self.after(1000, self.scan_layout)
 
-    def check_for_class(self, event):
-        if self.class_model.name != '':
+    def check_for_class(self, event=None):
+        if self.class_model.name != '' and self.class_defined is True:
             return
         if self.type == 'hpp':
             for line in self.text.get('1.0', tk.END).splitlines():
                 clean_line = line.strip().split(' ')
-                if clean_line[0] == 'class' and self.class_model.name == '':
+                if clean_line[0] == 'class' and self.class_defined is False:
                     self.text.edit_separator()
                     current_index = self.text.index(tk.INSERT)
                     self.class_model.name = clean_line[1]
@@ -257,6 +265,7 @@ class CppCodeText(tk.Frame):
                         # Trigger the keyword coloring update
                         self.alternate_view.update_keyword_colors('1.0', tk.END)
                     break
+            self.class_defined = True
 
     def update_keyword_colors(self, start, end):
         self.text.tag_remove("keyword", start, end)
@@ -524,6 +533,7 @@ class CppCodeText(tk.Frame):
             print('      Returns:           {}'.format(func.returntype))
             print('      Special:           {}'.format(func.specialtype))
             print('      Params:            {}'.format(func.parameters))
+            print('      UML line:          {}'.format(func.uml_line))
             print('      Header start/stop: {}, {}'.format(func.header_start, func.header_end))
             print('      Code start/stop:   {}, {}'.format(func.code_start, func.code_end))
         print('End of function list')
@@ -533,7 +543,11 @@ class CppCodeText(tk.Frame):
     def json_pack(self, event):
         variables = []
         functions = []
-        out = {'variable_order': [], 'variables': {}, 'function_order': [], 'functions': {}}
+        out = {'name': self.class_model.name,
+               'inherits_from': {},
+               'depends_on': {},
+               'variable_order': [], 'variables': {},
+               'function_order': [], 'functions': {}}
         for item_key in self.class_model.variables_list.keys():
             variables.append(item_key)
             var = self.class_model.variables_list[item_key]
