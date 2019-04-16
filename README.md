@@ -16,6 +16,14 @@ Things this editor can do so far:
 - The order of functions and variables in the class diagram matches the order in the header file. New functions added to the header populate code in the cpp file in matching order where possible. Functions which already have an entry in the cpp file will be left in their current location.
 - All details needed in the header, cpp, and class diagrams are stored in a composite JSON structure as the fundamental model of the class/object. Eventually this can be extended to use data from a Detailed Design document or requirements to sync comments in the code with the design documentation.
 
-Future updates will explore design document linking, UML diagram editing directly (and sync to the header and cpp file), test generation, class inheritance and connections, and multiple interacting classes.
+Future updates:
+- Explore design document linking
+- UML diagram editing directly (and sync to the header and cpp file)
+- Test generation
+- Class inheritance and connections, with multiple interacting classes.
 
 Python Dependencies: tkinter, json
+Using Python 3.7, tested so far only on a Mac
+
+Updates: 
+2019-04-09: UML diagram editing support started -- class in New (empty) editor can be named from a right-click context menu on the class diagram. Hooks in place to edit and insert variables and functions using context menus for the class diagram, but actual edit and insertions not implemented yet.
