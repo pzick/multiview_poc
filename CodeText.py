@@ -38,6 +38,8 @@ class CppCodeText(tk.Frame):
         self.alternate_view = None
         self.umlClassView = None
 
+        self.file_scanned = False
+
         self.class_defined = False
         self.class_start = None
         self.class_end = None
@@ -58,6 +60,7 @@ class CppCodeText(tk.Frame):
         if not (self.umlClassView is None):
             self.umlClassView.make_new()
         self.text.edit_modified(tk.FALSE)
+        self.file_scanned = False
 
     def set_tags(self):
         self.text.tag_configure('keyword', foreground='blue')
@@ -82,6 +85,16 @@ class CppCodeText(tk.Frame):
 
     def connect_uml_class_view(self, uml_class_view):
         self.umlClassView = uml_class_view
+
+    def insert_function(self, func, line, event=None):
+        if self.get_protection_state(line) != func.protection:
+            self.text.insert(line, '\n    {}:\n        {} {}({});\n'
+                             .format(func.protection, func.returntype, func.name, func.parameters))
+            line_set = line.split('.')
+            line = str(int(line_set[0]) + 1) + '.' + line_set[1]
+        else:
+            self.text.insert(line, '        {} {}({});\n'.format(func.returntype, func.name, func.parameters))
+        self.process_line(event, line)
 
     def parse_header(self):
         if self.class_defined is False:
@@ -201,6 +214,7 @@ class CppCodeText(tk.Frame):
             self.current_functions = self.parse_cpp()
         self.update_keyword_colors('1.0', tk.END)
         self.update_comments('1.0', tk.END)
+        self.file_scanned = True
         self.after(1000, self.scan_layout)
 
     def check_for_class(self, event=None):
@@ -252,7 +266,7 @@ class CppCodeText(tk.Frame):
                     destructor.setHeaderStartStop(start_index, stop_index)
 
                     # Update the cpp file to match the new header layout
-                    if self.alternate_type == 'cpp':
+                    if self.alternate_type == 'cpp' and self.file_scanned is True:
                         self.alternate_view.class_name = self.class_model.name
                         # Place the header file include at the start of the file
                         output = '#include "{}.hpp"\n\n'.format(self.class_model.name)
@@ -397,7 +411,7 @@ class CppCodeText(tk.Frame):
         if self.type == 'cpp':
             # Only process hpp file for now. Need different process for cpp
             return
-        if not (event is None):
+        if event is not None and event != '':
             self.check_line(event)
         if line_index is None:
             current_position = self.text.index(tk.INSERT)
@@ -441,15 +455,17 @@ class CppCodeText(tk.Frame):
 
             # If this function was called for a new entry rather than a key or time triggered event,
             # fill in the default body content of the cpp file
-            if event is not None:
+            new_body = False
+            if name not in self.class_model.function_list.keys():
                 body = self.default_return[return_type]
                 if body != '':
                     body = '    return {};\n'.format(body)
+                new_body = True
             else:
                 body = None
 
             # Prepare to add the function to the stored list and update the cpp file
-            if (self.class_model.name != '') and (self.alternate_type == 'cpp'):
+            if (self.class_model.name != '') and (self.alternate_type == 'cpp') and self.file_scanned is True:
                 if (name == self.class_model.name) and (special_type == '~'):
                     name = '~' + name
                 if name in self.class_model.function_list.keys():
@@ -461,7 +477,7 @@ class CppCodeText(tk.Frame):
                     func.setHeaderStartStop(current_position + ' linestart', current_position + ' lineend')
                     # Add the function to the list
                     self.class_model.function_list[name] = [len(self.class_model.function_list)+1, func]
-                    if not (event is None):
+                    if new_body is True:
                         # Figure out where to insert the new function in the cpp file
                         current_line = int(current_position.split('.')[0])
                         index = [i for i, x in enumerate(self.current_functions) if x[1] > current_line]
@@ -540,31 +556,84 @@ class CppCodeText(tk.Frame):
         print('--> List in ' + self.type + ': ')
         print(functions)
 
-    def json_pack(self, event):
+    def json_pack(self):
         variables = []
         functions = []
         out = {'name': self.class_model.name,
                'inherits_from': {},
                'depends_on': {},
-               'variable_order': [], 'variables': {},
-               'function_order': [], 'functions': {}}
+               'variable_order': [],
+               'variables': {},
+               'function_order': [],
+               'functions': {}}
+        if 'inherits_from' in self.class_model.__dict__:
+            out['inherits_from'] = self.class_model.inherits_from
+        if 'depends_on' in self.class_model.__dict__:
+            out['depends_on'] = self.class_model.depends_on
         for item_key in self.class_model.variables_list.keys():
             variables.append(item_key)
             var = self.class_model.variables_list[item_key]
-            out['variables'][item_key] = {'name': var.name, 'protection': var.protection, 'classname': var.classname,
-                                          'returns': var.returntype, 'special': var.specialtype,
-                                          'header_start': var.header_start, 'header_end': var.header_end,
-                                          'code_start': var.code_start, 'code_end': var.code_end}
+            out['variables'][item_key] = {
+                'name': var.name,
+                'protection': var.protection,
+                'classname': var.classname,
+                'returntype': var.returntype,
+                'specialtype': var.specialtype,
+                'header_start': var.header_start,
+                'header_end': var.header_end,
+                'code_start': var.code_start,
+                'code_end': var.code_end}
         for item_key in self.class_model.function_list.keys():
             functions.append(item_key)
             func = self.class_model.function_list[item_key][1]
-            out['functions'][item_key] = {'name': func.name, 'protection': func.protection, 'classname': func.classname,
-                   'returns': func.returntype, 'special': func.specialtype, 'parameters': func.parameters,
-                   'header_start': func.header_start, 'header_end': func.header_end,
-                   'code_start': func.code_start, 'code_end': func.code_end, 'body': func.body}
+            out['functions'][item_key] = {
+                'name': func.name,
+                'protection': func.protection,
+                'classname': func.classname,
+                'returntype': func.returntype,
+                'specialtype': func.specialtype,
+                'parameters': func.parameters,
+                'header_start': func.header_start,
+                'header_end': func.header_end,
+                'code_start': func.code_start,
+                'code_end': func.code_end,
+                'body': func.body}
         out['variable_order'] = variables
         out['function_order'] = functions
         return out
+
+    def json_unpack(self, data):
+        self.class_model.name = data['name']
+        self.class_model.inherits_from = data['inherits_from']
+        self.class_model.depends_on = data['depends_on']
+        # self.class_model.variables_ordered_list = data['variable_order']
+        self.class_model.variables_list = data['variables']
+        # self.class_model.function_order = data['function_order']
+        variables_list = {}
+        for key in data['variables'].keys():
+            # Construct the function objects
+            values = {
+                'name': data['variables'][key]['name'],
+                'classname': data['variables'][key]['classname'],
+                'specialtype': data['variables'][key]['specialtype'],
+                'returntype': data['variables'][key]['returntype'],
+                'protection': data['variables'][key]['protection']}
+            variables_list[key] = Variable(values)
+        self.class_model.variables_list = variables_list
+        function_list = {}
+        index = 0
+        for key in data['functions'].keys():
+            # Construct the function objects
+            new_func = self.create_function(
+                data['functions'][key]['name'],
+                data['functions'][key]['classname'],
+                data['functions'][key]['specialtype'],
+                data['functions'][key]['returntype'],
+                data['functions'][key]['parameters'],
+                data['functions'][key]['body'],
+                data['functions'][key]['protection'])
+            function_list[key] = [index, new_func]
+        self.class_model.function_list = function_list
 
     def on_undo(self, event):
         try:

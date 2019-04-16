@@ -63,6 +63,9 @@ class Function(object):
     def setProtectionType(self, type):
         self.protection = type
 
+    def getProtectionType(self):
+        return self.protection
+
     def getSignature(self):
         signature = ''
         if self.specialtype == '~':
@@ -126,7 +129,7 @@ class ClassModel(object):
         self.variables_list = {}
         self.variables_ordered_list = []
         self.function_list = {}
-        self.function_ordered_keys = []
+        self.function_ordered_key_list = []
         self.header_start = None
         self.header_end = None
         self.protection_state = 'public'

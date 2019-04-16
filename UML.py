@@ -3,6 +3,8 @@ from tkinter import font
 from PIL import Image, ImageDraw
 
 from Objects import ClassBox
+from Objects import Variable
+from Objects import Function
 
 class UmlClassDiagram(tk.Frame):
     def __init__(self, parent, class_model):
@@ -34,6 +36,7 @@ class UmlClassDiagram(tk.Frame):
         self.canvas.bind('<MouseWheel>', self.on_mouse_wheel)
 
         self.draw_diagram()
+        self.header_view = None
 
     def make_new(self):
         # Set the default locations of the diagram separator lines
@@ -41,8 +44,49 @@ class UmlClassDiagram(tk.Frame):
         self.method_line = 5
         self.draw_diagram()
 
-    def finish(self, text_box):
+    def connect_header_view(self, header):
+        self.header_view = header
+
+    def finish_class(self, text_box):
         self.class_model.name = text_box.children['!text'].get('1.0', 'end').strip()
+        text_box.destroy()
+
+    def finish_insert_entry(self, text_box, item, item_type):
+        if item_type == 'variable':
+            print('Not supported yet')
+        elif item_type == 'function':
+            new_function = text_box.children['!text'].get('1.0', 'end').strip()
+            new_name = new_function.split('(')[0]
+            protection = new_name.split(' ')[0]
+            if protection == '+':
+                protection = 'public'
+            elif protection == '-':
+                protection = 'private'
+            elif protection == '~':
+                protection = 'protected'
+            new_name = new_name.split(' ')[1]
+            new_type = new_function.split(':')[1].strip()
+            new_params = new_function.split('(')[1].split(')')[0].strip()
+            function_data = {'classname': self.class_model.name,
+                             'name': new_name,
+                             'specialtype': '',
+                             'returntype': new_type,
+                             'parameters': new_params,
+                             'body': ''}
+            new_func = Function(function_data)
+            new_func.setProtectionType(protection)
+
+            # Insert into hpp and cpp
+            if self.header_view is not None:
+                if item in self.class_model.function_list.keys():
+                    line, line_end = self.class_model.function_list[item][1].getHeaderStartStop()
+                    line = int(line.split('.')[0])
+                else:
+                    key = list(self.class_model.function_list.keys())[-1]
+                    line, line_end = self.class_model.function_list[key][1].getHeaderStartStop()
+                    line = int(line.split('.')[0])
+                line = '{}.0'.format(line + 1)
+                self.header_view.insert_function(new_func, line, event='')
         text_box.destroy()
 
     def update_class_name(self, event):
@@ -50,22 +94,31 @@ class UmlClassDiagram(tk.Frame):
         text_box = tk.Frame(self.canvas)
         text = tk.Text(text_box, height=1, width=30, borderwidth=3)
         text.pack()
-        text.bind('<Return>', lambda x: self.finish(text_box))
-        ok_button = tk.Button(text_box, text='OK', bg='green', command=lambda: self.finish(text_box))
+        text.bind('<Return>', lambda x: self.finish_class(text_box))
+        ok_button = tk.Button(text_box, text='OK', bg='green', command=lambda: self.finish_class(text_box))
         ok_button.pack()
         text_box.pack()
         text_box.place(x=event.x, y=event.y)
         text.focus_set()
         text.focus()
+
+    def edit_entry(self, item, item_type, event):
+        print('edit line {} {}'.format(item_type, item))
         pass
 
-    def edit_entry(self, line):
-        print('edit line {}'.format(line))
-        pass
-
-    def insert_entry(self, line):
-        print('insert at line {}'.format(line))
-        pass
+    def insert_entry(self, item, item_type, event):
+        print('insert at line {} {}'.format(item_type, item))
+        text_box = tk.Frame(self.canvas)
+        text = tk.Text(text_box, height=1, width=30, borderwidth=3)
+        text.pack()
+        text.bind('<Return>', lambda x: self.finish_insert_entry(text_box, item, item_type))
+        ok_button = tk.Button(text_box, text='OK', bg='green',
+                              command=lambda: self.finish_insert_entry(text_box,item, item_type))
+        ok_button.pack()
+        text_box.pack()
+        text_box.place(x=event.x, y=event.y)
+        text.focus_set()
+        text.focus()
 
     def on_left_click(self, event):
         self.canvas.focus_force()
@@ -90,25 +143,26 @@ class UmlClassDiagram(tk.Frame):
         return name, item_type
 
     def on_right_click(self, event):
+        x = event.widget.canvasx(event.x)
+        y = event.widget.canvasy(event.y)
         context_menu = tk.Menu(self.canvas, tearoff=0)
         if self.class_model.name is None or self.class_model.name == '':
             context_menu.add_command(label='Name the Class', command=lambda: self.update_class_name(event))
             context_menu.post(event.x_root, event.y_root)
         else:
-            line = int(event.y / self.classDiagram.line_height)
+            line = int(y / self.classDiagram.line_height)
             item, item_type = self.get_item_at_line(line)
             if item == '' and item_type != '':
                 context_menu.add_command(label='Insert {}'.format(item_type),
-                                         command=lambda: self.insert_entry(line))
+                                         command=lambda: self.insert_entry(None, item_type, event))
             elif item != '' and item_type != '':
-                context_menu.add_command(label='Edit {} "{}"'.format(item_type, item),
-                                         command=lambda: self.edit_entry(line))
                 context_menu.add_command(label='Insert {} after "{}"'.format(item_type, item),
-                                         command=lambda: self.insert_entry(line))
+                                         command=lambda: self.insert_entry(item, item_type, event))
+                # context_menu.add_command(label='Edit {} "{}"'.format(item_type, item),
+                #                          command=lambda: self.edit_entry(item, item_type, event))
             context_menu.post(event.x_root, event.y_root)
 
     def on_mouse_wheel(self, event):
-        # print(event)
         if event.state == 1:
             self.canvas.xview_scroll(-1 * event.delta, 'units')
         else:

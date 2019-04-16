@@ -35,15 +35,12 @@ def save_as():
     if os.path.isfile(save_location + '.hpp') or os.path.isfile(save_location + '.cpp'):
         answer = MessageBox.askyesno('Files already exists.', 'Overwrite?')
     if answer is True:
-        file = open(save_location + ".hpp", "w")
-        file.write(t)
-        file.close()
-        file = open(save_location + ".cpp", "w")
-        file.write(t2)
-        file.close()
-        file = open(save_location + '.json', 'w')
-        file.write(json.dumps(header.json_pack(False), indent=4))
-        file.close()
+        with open(save_location + ".hpp", "w") as file:
+            file.write(t)
+        with open(save_location + ".cpp", "w") as file:
+            file.write(t2)
+        with open(save_location + '.json', 'w') as file:
+            file.write(json.dumps(header.json_pack(), indent=4))
 
         filename = save_location.rsplit('/', 1)[-1]
         uml_label.config(text=str(filename + '.uml'), bg='#00FF00')
@@ -63,12 +60,13 @@ def load_files():
     print(infilenamebase)
     if infilenamebase == '':
         return
-    infile = open(infilenamebase+".hpp", "r")
-    header_in = infile.readlines()
-    infile.close()
-    infile = open(infilenamebase+".cpp", "r")
-    codedecl = infile.readlines()
-    infile.close()
+    with open(infilenamebase+".json", "rt") as infile:
+        data = json.load(infile)
+    with open(infilenamebase+".hpp", "r") as infile:
+        header_in = infile.readlines()
+    with open(infilenamebase+".cpp", "r") as infile:
+        codedecl = infile.readlines()
+
     header_in = ''.join(header_in)
     codedecl = ''.join(codedecl)
 
@@ -77,6 +75,8 @@ def load_files():
     class_model.name = filename
     header.make_new()
     source.make_new()
+    header.json_unpack(data)
+
     header.text.insert('1.0', header_in)
     source.text.delete('1.0', END)
     source.text.insert('1.0', codedecl)
@@ -135,6 +135,7 @@ if __name__ == "__main__":
     header.connect_alternate_view('cpp', source)
     header.connect_uml_class_view(uml_class)
     source.connect_alternate_view('hpp', header)
+    uml_class.connect_header_view(header)
 
     uml_frame.grid(row=1, column=0)
     uml_label.pack()
